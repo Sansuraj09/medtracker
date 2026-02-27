@@ -1,0 +1,95 @@
+<!-- Medicine form macro — include with med=None for add, med=<Medicine> for edit -->
+<div class="mb-3">
+  <label class="form-label">Medicine Name *</label>
+  <input type="text" class="form-control" name="name" placeholder="e.g. Amoxicillin" required
+         value="{{ med.name if med else request.form.get('name', '') }}"/>
+</div>
+
+<!-- Dosage -->
+<div class="mb-3">
+  <label class="form-label">Dosage</label>
+  <div class="btn-group toggle-group mb-2" role="group">
+    <input type="radio" class="btn-check" name="dose_mode" id="dose_structured" value="structured"
+           {% if not med or not med.dosage_freeform %}checked{% endif %} onchange="toggleDoseMode(this)"/>
+    <label class="btn btn-outline-secondary" for="dose_structured">Structured</label>
+    <input type="radio" class="btn-check" name="dose_mode" id="dose_freeform" value="freeform"
+           {% if med and med.dosage_freeform %}checked{% endif %} onchange="toggleDoseMode(this)"/>
+    <label class="btn btn-outline-secondary" for="dose_freeform">Freeform</label>
+  </div>
+
+  <div id="dose_structured_fields" {% if med and med.dosage_freeform %}style="display:none"{% endif %}>
+    <div class="row g-2">
+      <div class="col-6">
+        <input type="number" class="form-control" name="dosage_qty" placeholder="Quantity" min="0" step="any"
+               value="{{ med.dosage_qty if med and med.dosage_qty else '' }}"/>
+      </div>
+      <div class="col-6">
+        <select class="form-select" name="dosage_unit">
+          {% for u in dose_units %}
+          <option {% if med and med.dosage_unit == u %}selected{% endif %}>{{ u }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="dose_freeform_fields" {% if not med or not med.dosage_freeform %}style="display:none"{% endif %}>
+    <input type="text" class="form-control" name="dosage_freeform" placeholder="e.g. 500mg or two tablets"
+           value="{{ med.dosage_freeform if med and med.dosage_freeform else '' }}"/>
+  </div>
+</div>
+
+<!-- Frequency -->
+<div class="mb-3">
+  <label class="form-label">Frequency</label>
+  <div class="btn-group toggle-group mb-2" role="group">
+    <input type="radio" class="btn-check" name="freq_mode" id="freq_structured" value="structured"
+           {% if not med or not med.frequency_freeform %}checked{% endif %} onchange="toggleFreqMode(this)"/>
+    <label class="btn btn-outline-secondary" for="freq_structured">Structured</label>
+    <input type="radio" class="btn-check" name="freq_mode" id="freq_freeform" value="freeform"
+           {% if med and med.frequency_freeform %}checked{% endif %} onchange="toggleFreqMode(this)"/>
+    <label class="btn btn-outline-secondary" for="freq_freeform">Freeform</label>
+  </div>
+
+  <div id="freq_structured_fields" {% if med and med.frequency_freeform %}style="display:none"{% endif %}>
+    <div class="row g-2">
+      <div class="col-6">
+        <input type="number" class="form-control" name="frequency_qty" placeholder="Quantity" min="1"
+               value="{{ med.frequency_qty if med and med.frequency_qty else '' }}"/>
+      </div>
+      <div class="col-6">
+        <select class="form-select" name="frequency_unit">
+          {% for u in freq_units %}
+          <option {% if med and med.frequency_unit == u %}selected{% endif %}>{{ u }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="freq_freeform_fields" {% if not med or not med.frequency_freeform %}style="display:none"{% endif %}>
+    <input type="text" class="form-control" name="frequency_freeform" placeholder="e.g. Every 8 hours"
+           value="{{ med.frequency_freeform if med and med.frequency_freeform else '' }}"/>
+  </div>
+</div>
+
+<div class="mb-4">
+  <label class="form-label">Notes (optional)</label>
+  <input type="text" class="form-control" name="notes" placeholder="e.g. Take with food"
+         value="{{ med.notes if med and med.notes else '' }}"/>
+</div>
+
+<script>
+function toggleDoseMode(el) {
+  const s = document.getElementById('dose_structured_fields');
+  const f = document.getElementById('dose_freeform_fields');
+  if (el.value === 'structured') { s.style.display=''; f.style.display='none'; }
+  else { s.style.display='none'; f.style.display=''; }
+}
+function toggleFreqMode(el) {
+  const s = document.getElementById('freq_structured_fields');
+  const f = document.getElementById('freq_freeform_fields');
+  if (el.value === 'structured') { s.style.display=''; f.style.display='none'; }
+  else { s.style.display='none'; f.style.display=''; }
+}
+</script>

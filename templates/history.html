@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Dose History — MedTracker{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-0">Dose History</h3>
+    <p class="text-muted mb-0">{{ entries.total }} dose{{ 's' if entries.total != 1 }} logged</p>
+  </div>
+  <form method="GET" class="d-flex gap-2 align-items-center">
+    <select class="form-select form-select-sm" name="medicine_id" onchange="this.form.submit()" style="width:auto">
+      <option value="all" {% if filter_med == 'all' %}selected{% endif %}>All medicines</option>
+      {% for med in medicines %}
+      <option value="{{ med.id }}" {% if filter_med == med.id|string %}selected{% endif %}>{{ med.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if entries.items %}
+{% set colors = ['#4361ee','#2ec4b6','#f59e0b','#e879f9','#f87171','#34d399','#60a5fa','#fb923c'] %}
+
+<!-- Group by day -->
+{% set ns = namespace(current_day='') %}
+{% for entry in entries.items %}
+{% set day = entry.taken_at.strftime('%A, %B %d, %Y') %}
+{% if day != ns.current_day %}
+{% set ns.current_day = day %}
+<p class="label-sm mt-4 mb-2">{{ day }}</p>
+{% endif %}
+{% set med = medicines | selectattr('id', 'equalto', entry.medicine_id) | first | default(None) %}
+{% set color = colors[loop.index0 % colors|length] if not med else colors[(medicines.index(med)) % colors|length] %}
+<div class="card mb-2 p-3 d-flex flex-row align-items-center gap-3" style="border-left:3px solid {{ color }}">
+  <div class="flex-grow-1">
+    <span class="fw-bold">{{ entry.medicine.name }}</span>
+    <span class="text-muted ms-1" style="font-size:0.85rem">· {{ entry.medicine.dosage_display }}</span>
+    {% if entry.note %}
+    <span class="text-muted ms-1" style="font-size:0.8rem; font-style:italic">· {{ entry.note }}</span>
+    {% endif %}
+  </div>
+  <span class="text-muted" style="font-size:0.82rem; white-space:nowrap">
+    {{ entry.taken_at.strftime('%I:%M %p') }}
+  </span>
+</div>
+{% endfor %}
+
+<!-- Pagination -->
+{% if entries.pages > 1 %}
+<nav class="mt-4">
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if not entries.has_prev %}disabled{% endif %}">
+      <a class="page-link" href="?page={{ entries.prev_num }}&medicine_id={{ filter_med }}">‹ Prev</a>
+    </li>
+    {% for p in entries.iter_pages() %}
+    <li class="page-item {% if p == entries.page %}active{% endif %}">
+      <a class="page-link" href="?page={{ p }}&medicine_id={{ filter_med }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+    <li class="page-item {% if not entries.has_next %}disabled{% endif %}">
+      <a class="page-link" href="?page={{ entries.next_num }}&medicine_id={{ filter_med }}">Next ›</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="card text-center py-5">
+  <div style="font-size:3rem">📋</div>
+  <h4 class="fw-bold mt-3">No history yet</h4>
+  <p class="text-muted">Click "Log Dose Taken" on any medicine card to record doses</p>
+  <div><a href="{{ url_for('dashboard') }}" class="btn btn-primary">Go to Dashboard</a></div>
+</div>
+{% endif %}
+{% endblock %}
