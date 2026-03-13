@@ -1,34 +1,7 @@
-version: '3.8'
-
 services:
-  web:
+  medtracker:
     build: .
-    container_name: medtracker_web
     ports:
       - "5000:5000"
     environment:
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - FLASK_ENV=production
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///medtracker.db}
-      - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
-      - MAIL_PORT=${MAIL_PORT:-587}
-      - MAIL_USERNAME=${MAIL_USERNAME:-}
-      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
-    volumes:
-      - ./medtracker.db:/app/medtracker.db
-    restart: unless-stopped
-
-  # Optional: PostgreSQL database (uncomment to use instead of SQLite)
-  # db:
-  #   image: postgres:15-alpine
-  #   container_name: medtracker_db
-  #   environment:
-  #     POSTGRES_DB: medtracker
-  #     POSTGRES_USER: medtracker
-  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   restart: unless-stopped
-  #
-  # volumes:
-  #   postgres_data:
+      - FLASK_APP=app.py
