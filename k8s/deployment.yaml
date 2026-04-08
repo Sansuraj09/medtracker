@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medtracker-app
+  namespace: default
+  labels:
+    app: medtracker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: medtracker
+  template:
+    metadata:
+      labels:
+        app: medtracker
+    spec:
+      containers:
+      - name: medtracker
+        image: suraj960/medtracker:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: FLASK_APP
+          value: "app.py"
+        - name: MYSQL_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: medtracker-config
+              key: mysql-host
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: medtracker-secret
+              key: mysql-user
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: medtracker-secret
+              key: mysql-password
+        - name: MYSQL_DB
+          valueFrom:
+            configMapKeyRef:
+              name: medtracker-config
+              key: mysql-db
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: medtracker-secret
+              key: secret-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5

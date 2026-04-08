@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — MedTracker{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-0">My Medicines</h3>
+    <p class="text-muted mb-0">{{ medicines|length }} medicine{{ 's' if medicines|length != 1 }} tracked
+      {% if today_doses %} · <span style="color:#2ec4b6">✓ {{ today_doses }} dose{{ 's' if today_doses != 1 }} today</span>{% endif %}
+    </p>
+  </div>
+  <a href="{{ url_for('add_medicine') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Add Medicine
+  </a>
+</div>
+
+<!-- Medicine List -->
+{% if not medicines %}
+<div class="card text-center py-5">
+  <div style="font-size:3.5rem">🩺</div>
+  <h4 class="fw-bold mt-3">No medicines yet</h4>
+  <p class="text-muted">Add your first medicine to start tracking</p>
+  <div>
+    <a href="{{ url_for('add_medicine') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>Add Medicine
+    </a>
+  </div>
+</div>
+{% else %}
+<div class="row g-3 mb-4">
+  {% set colors = ['#4361ee','#2ec4b6','#f59e0b','#e879f9','#f87171','#34d399','#60a5fa','#fb923c'] %}
+  {% for med in medicines %}
+  {% set color = colors[loop.index0 % colors|length] %}
+  <div class="col-md-6">
+    <div class="card med-card h-100" style="border-left: 4px solid {{ color }}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="fw-bold mb-0" style="color:#e2e8f0">
+            <span class="badge-dot me-2" style="background:{{ color }}"></span>
+            {{ med.name }}
+          </h5>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('edit_medicine', med_id=med.id) }}"
+               class="btn btn-sm btn-outline-secondary">Edit</a>
+            <form method="POST" action="{{ url_for('delete_medicine', med_id=med.id) }}"
+                  onsubmit="return confirm('Delete {{ med.name }}?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          <span class="chip" style="background:{{ color }}22; border:1px solid {{ color }}44; color:#e2e8f0">
+            <span class="label-sm" style="color:{{ color }}">Dose</span>
+            {{ med.dosage_display }}
+          </span>
+          <span class="chip" style="background:{{ color }}22; border:1px solid {{ color }}44; color:#e2e8f0">
+            <span class="label-sm" style="color:{{ color }}">Freq</span>
+            {{ med.frequency_display }}
+          </span>
+        </div>
+
+        {% if med.notes %}
+        <p class="text-muted mb-2" style="font-size:0.85rem; font-style:italic">{{ med.notes }}</p>
+        {% endif %}
+
+        <!-- Log dose -->
+        <form method="POST" action="{{ url_for('log_dose', med_id=med.id) }}" class="d-flex gap-2 mt-2">
+          <button type="submit" class="btn btn-sm btn-warning fw-bold">
+            💊 Log Dose Taken
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<hr/>
+
+<!-- Reminders Section -->
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">🔔 Add Reminder</div>
+      <div class="card-body">
+        {% if not medicines %}
+        <p class="text-muted mb-0">Add medicines first to set reminders.</p>
+        {% else %}
+        <form method="POST" action="{{ url_for('add_reminder') }}">
+          <div class="mb-3">
+            <label class="form-label">Medicine</label>
+            <select class="form-select" name="medicine_id" required>
+              {% for med in medicines %}
+              <option value="{{ med.id }}">{{ med.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Time</label>
+            <input type="time" class="form-control" name="reminder_time" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Label (optional)</label>
+            <input type="text" class="form-control" name="label" placeholder="e.g. Morning dose"/>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">+ Add Reminder</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>⏰ Active Reminders</span>
+        <span class="badge bg-primary rounded-pill">{{ reminders|selectattr('active')|list|length }} active</span>
+      </div>
+      <div class="card-body p-0">
+        {% if not reminders %}
+        <p class="text-muted text-center py-4 mb-0">No reminders set yet.</p>
+        {% else %}
+        <div class="list-group list-group-flush">
+          {% for rem in reminders %}
+          <div class="list-group-item bg-transparent border-secondary d-flex align-items-center gap-3 {% if not rem.active %}opacity-50{% endif %}">
+            <div class="flex-grow-1">
+              <span class="fw-bold">{{ rem.medicine.name }}</span>
+              <span class="text-muted ms-1" style="font-size:0.85rem">· {{ rem.medicine.dosage_display }}</span>
+              {% if rem.label %}
+              <span class="text-muted ms-1" style="font-size:0.8rem; font-style:italic">· {{ rem.label }}</span>
+              {% endif %}
+            </div>
+            <span class="fw-bold" style="font-size:1.1rem">{{ rem.reminder_time }}</span>
+            <form method="POST" action="{{ url_for('toggle_reminder', rem_id=rem.id) }}">
+              <button type="submit" class="btn btn-sm {% if rem.active %}btn-success{% else %}btn-secondary{% endif %}">
+                {{ 'ON' if rem.active else 'OFF' }}
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('delete_reminder', rem_id=rem.id) }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">✕</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

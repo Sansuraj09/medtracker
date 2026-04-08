@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: medtracker-config
+  namespace: default
+data:
+  mysql-host: "mysql-service.default.svc.cluster.local"
+  mysql-db: "medtracker"
