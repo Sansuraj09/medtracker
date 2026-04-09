@@ -23,7 +23,7 @@ MYSQL_DB = os.environ.get("MYSQL_DB", "medtracker")
 
 # Database URL - use MySQL if environment variables are set, otherwise fall back to SQLite
 if os.environ.get("MYSQL_HOST"):
-    DATABASE_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
+    DATABASE_URL = "mysql+mysqlconnector://medtracker:medtracker123@mysql:3306/medtracker"
 else:
     DATABASE_URL = "sqlite:///medtracker.db"
 
