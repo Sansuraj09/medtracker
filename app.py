@@ -21,11 +21,11 @@ MYSQL_HOST = os.environ.get("MYSQL_HOST", "localhost")
 MYSQL_PORT = os.environ.get("MYSQL_PORT", "3306")
 MYSQL_DB = os.environ.get("MYSQL_DB", "medtracker")
 
+
 # Database URL - use MySQL if environment variables are set, otherwise fall back to SQLite
-if os.environ.get("MYSQL_HOST"):
-    DATABASE_URL = "mysql+mysqlconnector://medtracker:medtracker123@mysql:3306/medtracker"
-else:
-    DATABASE_URL = "sqlite:///medtracker.db"
+DATABASE_URL = "mysql+mysqlconnector://medtracker:medtracker123@mysql:3306/medtracker"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", DATABASE_URL)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", DATABASE_URL)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
