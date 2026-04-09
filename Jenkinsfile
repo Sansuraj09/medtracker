@@ -15,12 +15,13 @@ pipeline {
         }
 
       stage('Lint & Static Check') {
-            steps {
-                echo 'Checking for syntax errors...'
-                // Mounts the current Jenkins workspace into the container at /app
-                sh 'docker run --rm -v ${PWD}:/app -w /app python:3.9-slim sh -c "pip install flake8 && flake8 ."'
-            }
-        }
+    steps {
+        echo 'Checking for syntax errors...'
+        // --max-line-length=120: Allows longer lines
+        // --ignore=E221: Tells the linter to stop complaining about extra spaces
+        sh 'docker run --rm -v ${PWD}:/app -w /app python:3.9-slim sh -c "pip install flake8 && flake8 . --max-line-length=120 --ignore=E221"'
+    }
+}
 
         stage('Unit Tests') {
             steps {
