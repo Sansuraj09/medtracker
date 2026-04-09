@@ -14,11 +14,11 @@ pipeline {
             }
         }
 
-        stage('Lint & Static Check') {
+      stage('Lint & Static Check') {
             steps {
                 echo 'Checking for syntax errors...'
-                // Using a python container to lint the code
-                sh 'docker run --rm python:3.9-slim pip install flake8 && flake8 .'
+                // Mounts the current Jenkins workspace into the container at /app
+                sh 'docker run --rm -v ${PWD}:/app -w /app python:3.9-slim sh -c "pip install flake8 && flake8 ."'
             }
         }
 
