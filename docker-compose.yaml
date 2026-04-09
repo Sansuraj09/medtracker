@@ -1,7 +1,48 @@
+version: '3.8'
+
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: medtracker-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: medtracker
+      MYSQL_USER: medtracker
+      MYSQL_PASSWORD: medtracker123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - medtracker-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
   medtracker:
     build: .
+    container_name: medtracker-app
     ports:
       - "5000:5000"
     environment:
       - FLASK_APP=app.py
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=medtracker
+      - MYSQL_PASSWORD=medtracker123
+      - MYSQL_DB=medtracker
+      - MYSQL_PORT=3306
+      - FLASK_ENV=production
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - medtracker-network
+    volumes:
+      - .:/app
+
+volumes:
+  mysql_data:
+
+networks:
+  medtracker-network:
