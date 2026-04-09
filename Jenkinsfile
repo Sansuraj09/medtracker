@@ -1,80 +1,65 @@
 pipeline {
-    // Allows Jenkins to run this on any available agent
     agent any
     
     environment {
-        // --- CONFIGURATION ---
-        DOCKER_CREDENTIALS_ID = 'suraj960' // The ID of your credentials in Jenkins
-        DOCKER_IMAGE          = 'suraj960/medtracker'
-        AWS_REGION            = 'ap-south-1'      
-        EKS_CLUSTER_NAME      = 'medtracker-cluster'
+        DOCKER_IMAGE = "suraj960/medtracker"
+        DOCKER_TAG   = "${BUILD_NUMBER}"
+        // Make sure this matches the Credential ID you created in Jenkins
+        DOCKER_HUB_CREDS = 'suraj960' 
     }
-    
+
     stages {
-        stage('Pull Latest Code') {
+        stage('Pull Code') {
             steps {
-                // Jenkins automatically pulls code from the defined SCM before this,
-                // but we explicitly state it for pipeline visibility.
                 checkout scm
-                echo "Code pulled successfully."
             }
         }
-        
-        stage('Build Docker Image') {
+
+        stage('Docker Build') {
             steps {
-                script {
-                    echo "Building MedTracker Docker image..."
-                    // We tag with both the specific Jenkins Build Number AND 'latest'
-                    sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} -t ${DOCKER_IMAGE}:latest ."
-                }
+                echo "Building Image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest ."
             }
         }
-        
+
+        stage('Test Build') {
+            steps {
+                echo "Running smoke tests..."
+                // This starts the container briefly to see if the app actually boots
+                sh "docker run --rm ${DOCKER_IMAGE}:${DOCKER_TAG} python -m flask --version"
+            }
+        }
+
         stage('Push to Docker Hub') {
             steps {
-                // Securely injects Docker Hub credentials without exposing them in logs
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                    sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
-                    
-                    echo "Pushing images to Docker Hub..."
-                    sh "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDS}", passwordVariable: 'PASS', usernameVariable: 'USER')]) {
+                    sh "echo \$PASS | docker login -u \$USER --password-stdin"
+                    sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
                     sh "docker push ${DOCKER_IMAGE}:latest"
                 }
             }
         }
-        
-        stage('Deploy to EKS') {
+
+        stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    echo "Authenticating to EKS via IAM Role..."
-                    // This command uses the IAM Role attached to the Jenkins EC2 instance 
-                    // to securely generate the kubeconfig file required by kubectl.
-                    sh "aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME}"
+                    // This assumes you have the 'aws' and 'kubectl' tools installed now
+                    sh "aws eks update-kubeconfig --region ap-south-1 --name medtracker-cluster"
                     
-                    echo "Injecting new image tag into Kubernetes manifests..."
-                    // This dynamically updates your deployment file to use the exact build we just created
-                    sh "sed -i 's|${DOCKER_IMAGE}:.*|${DOCKER_IMAGE}:${BUILD_NUMBER}|g' k8s/deployment.yaml"
+                    // Update the deployment file with the new image tag
+                    sh "sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${DOCKER_IMAGE}:${DOCKER_TAG}|g' k8s/deployment.yaml"
                     
-                    echo "Applying changes to the live cluster..."
                     sh "kubectl apply -f k8s/"
                 }
             }
         }
     }
-    
+
     post {
         always {
-            echo "Pipeline complete. Cleaning up local Docker images to prevent disk exhaustion..."
-            // Removes the images from the Jenkins server to keep the environment clean
-            sh "docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER} || true"
-            sh "docker rmi ${DOCKER_IMAGE}:latest || true"
             sh "docker logout"
-        }
-        success {
-            echo "✅ MedTracker deployment was successful!"
-        }
-        failure {
-            echo "❌ Pipeline failed. Please check the Jenkins logs."
+            echo "Cleaning up local images..."
+            sh "docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true"
         }
     }
 }
