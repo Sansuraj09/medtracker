@@ -1,65 +1,75 @@
 pipeline {
-    agent any
+    // You can restrict this to a specific agent with Docker installed, e.g., agent { label 'docker-node' }
+    agent any 
     
     environment {
-        DOCKER_IMAGE = "suraj960/medtracker"
-        DOCKER_TAG   = "${BUILD_NUMBER}"
-        // Make sure this matches the Credential ID you created in Jenkins
-        DOCKER_HUB_CREDS = 'suraj960' 
+        // Replace 'docker-hub-credentials-id' with the actual ID you set in Jenkins Credentials
+        DOCKER_CREDS = credentials('docker-hub-credentials') 
+        IMAGE_NAME = "suraj960/medtracker"
+        IMAGE_TAG = "v${env.BUILD_NUMBER}" // Tags the image with the Jenkins build number for version control
     }
 
     stages {
-        stage('Pull Code') {
+        stage('Checkout') {
             steps {
-                checkout scm
+                echo 'Checking out source code...'
+                // Automatically checks out the code from the repository configured in your Jenkins pipeline job
+                checkout scm 
             }
         }
 
-        stage('Docker Build') {
+        stage('Test Code') {
             steps {
-                echo "Building Image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest ."
-            }
-        }
-
-        stage('Test Build') {
-            steps {
-                echo "Running smoke tests..."
-                // This starts the container briefly to see if the app actually boots
-                sh "docker run --rm ${DOCKER_IMAGE}:${DOCKER_TAG} python -m flask --version"
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDS}", passwordVariable: 'PASS', usernameVariable: 'USER')]) {
-                    sh "echo \$PASS | docker login -u \$USER --password-stdin"
-                    sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    sh "docker push ${DOCKER_IMAGE}:latest"
-                }
-            }
-        }
-
-        stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    // This assumes you have the 'aws' and 'kubectl' tools installed now
-                    sh "aws eks update-kubeconfig --region ap-south-1 --name medtracker-cluster"
+                echo 'Setting up environment and running tests...'
+                sh '''
+                    # Setting up a virtual environment for isolated testing
+                    python3 -m venv myenv
+                    source myenv/bin/activate
                     
-                    // Update the deployment file with the new image tag
-                    sh "sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${DOCKER_IMAGE}:${DOCKER_TAG}|g' k8s/deployment.yaml"
-                    
-                    sh "kubectl apply -f k8s/"
-                }
+                    # Install dependencies and run tests (adjust commands to your specific framework)
+                    pip install -r requirements.txt
+                    pytest tests/
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}..."
+                // Builds the image using the Dockerfile in the root directory
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                
+                // Also tag it as 'latest' for convenience
+                sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
+            }
+        }
+
+        stage('Push to Registry') {
+            steps {
+                echo 'Authenticating and pushing image to Docker Hub...'
+                // Securely logging into Docker using the credentials bound in the environment block
+                sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
+                
+                // Push both the versioned tag and the latest tag
+                sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                sh "docker push ${IMAGE_NAME}:latest"
             }
         }
     }
 
+    // The post block executes actions based on the pipeline's outcome
     post {
         always {
-            sh "docker logout"
-            echo "Cleaning up local images..."
-            sh "docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true"
+            echo 'Cleaning up workspace and logging out...'
+            // Clears the Jenkins workspace to save disk space and prevent state leakage between builds
+            cleanWs() 
+            sh 'docker logout'
+        }
+        success {
+            echo 'Pipeline completed successfully! CI/CD automation executed.'
+        }
+        failure {
+            echo 'Pipeline failed during execution. Please check the stage logs.'
         }
     }
 }
